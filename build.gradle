@@ -1,0 +1,136 @@
+buildscript {
+    ext {
+        kotlinVersion = '1.3.21'
+        kotlinLoggingVersion = '1.6.25'
+
+        // spring
+        springBootVersion = '2.1.2.RELEASE'
+        springVersion = '5.1.5.RELEASE'
+        logBackClassicVersion = '1.2.3'
+
+        // GraphQL
+        graphqlSpringVersion = '5.10.0'
+        graphqlJavaToolsVersion = '5.6.1'
+
+        // jaxb
+        jaxbApiVersion = '2.4.0-b180830.0359'
+        jaxbCoreVersion = '2.3.0.1'
+        jaxbImplVersion = '2.4.0-b180830.0438'
+
+        // test
+        spekVersion = '2.0.2'
+        jupiterApiVersion = '5.5.0-M1'
+    }
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url 'http://repo.spring.io/plugins-release' }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-allopen:${kotlinVersion}")
+
+        classpath("io.spring.gradle:propdeps-plugin:0.0.9.RELEASE")
+
+        classpath 'com.bmuschko:gradle-docker-plugin:3.2.8'
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:0.9.16"
+
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:latest.release"
+
+        classpath("com.google.protobuf:protobuf-gradle-plugin:0.8.5")
+    }
+}
+
+wrapper.gradleVersion = '5.1.1'
+
+allprojects {
+    group 'com.example'
+    version = '0.0.1'
+}
+
+subprojects {
+    apply plugin: 'kotlin'
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+    apply plugin: 'org.jetbrains.dokka'
+
+    apply plugin: 'maven-publish'
+    apply plugin: "com.jfrog.artifactory"
+
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'kotlin-spring'
+
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-stream-dependencies:Elmhurst.RELEASE"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:Greenwich.RELEASE"
+        }
+
+        dependencies {
+            // kotlin
+            dependency "org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
+            dependency "org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
+            dependency "io.github.microutils:kotlin-logging:${kotlinLoggingVersion}"
+            
+            dependency "ch.qos.logback:logback-classic:${logBackClassicVersion}"
+            // https://mvnrepository.com/artifact/javax.mail/mail
+            dependency "javax.mail:mail:1.5.0-b01"
+            // https://mvnrepository.com/artifact/org.codehaus.janino/janino
+            dependency "org.codehaus.janino:janino:3.0.12"
+
+            // https://mvnrepository.com/artifact/com.graphql-java/graphql-spring-boot-starter
+            dependency "com.graphql-java-kickstart:graphql-spring-boot-starter:${graphqlSpringVersion}"
+            dependency "com.graphql-java-kickstart:graphiql-spring-boot-starter:${graphqlSpringVersion}"
+            dependency "com.graphql-java-kickstart:graphql-java-tools:${graphqlJavaToolsVersion}"
+
+
+            // test
+            dependency "org.spekframework.spek2:spek-dsl-jvm:${spekVersion}"
+            dependency "org.spekframework.spek2:spek-runner-junit5:${spekVersion}"
+            dependency "org.junit.jupiter:junit-jupiter-api:${jupiterApiVersion}"
+        }
+    }
+
+    dokka {
+        outputFormat = 'javadoc'
+    }
+
+    configurations {
+        all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
+    }
+
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    artifacts {
+        archives jar
+        archives sourcesJar
+        archives javadocJar
+    }
+
+    jar {
+        manifest {
+            attributes("group-id": project.group)
+            attributes("artifact-id": project.name)
+            attributes("version": version)
+            attributes("built-at": new Date().format("yyyy-MM-dd'T'HH:mm:ss"))
+        }
+    }
+}
